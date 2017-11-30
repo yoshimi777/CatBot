@@ -1,0 +1,12 @@
+pip
+discord.py[voice]
+youtube_dl
+mtranslate
+aiohttp
+websockets
+PyNaCl
+chatterbot
+textblob
+pyaml
+nltk
+sqlalchemy
