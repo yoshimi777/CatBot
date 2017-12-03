@@ -1,4 +1,0 @@
-recursive-include bot Languages.json *.exe quick_cmd.bat data.db requirements.txt virtenv.bat
-recursive-include bot/botdata *.yml
-recursive-include bot/cat *.txt 
-recursive-exclude bot/cogs/utils config.py
