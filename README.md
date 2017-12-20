@@ -51,6 +51,6 @@ That's it!
 ### Acknowledgements 
 
 
-Special thanks to https://github.com/corpnewt/CorpBot.py, https://github.com/Cog-Creators/Red-DiscordBot and https://github.com/Rapptz/discord.py
+Special thanks to [CorpBot](https://github.com/corpnewt/CorpBot.py), [Red-DiscordBot](https://github.com/Cog-Creators/Red-DiscordBot) and [Discord.py](https://github.com/Rapptz/discord.py)
 
 
