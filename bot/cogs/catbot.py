@@ -79,7 +79,15 @@ class CatBot():
                         "🍆", "💰", "💎"]
         PLAYER = ctx.message.author.id
         INIT_SCORE = 20
-        score = INIT_SCORE
+        folder = ctx.message.server.id
+        file = f"{PLAYER}.txt"
+        if not os.path.isfile(f"data/{folder}/{file}"):
+            score = INIT_SCORE
+        else:
+            with open(f"data/{folder}/{file}", "r") as f:
+                line = f.readline().strip()
+                score = int(line)
+                await self.bot.say(f"Hullo, {ctx.message.author.name}. Your score is {score}")
         firstWheel = None
         secondWheel = None
         thirdWheel = None
@@ -134,15 +142,14 @@ class CatBot():
                     await self.bot.delete_message(again)
                     await self.bot.delete_message(msg)
                     await printScore(PLAYER, score)
-                else:
-                    await self.bot.delete_message(msg)
+                if again.content.lower().startswith('n'):
                     filename = PLAYER + ".txt"
                     sid = ctx.message.channel.server.id
                     foldername = f"data/{sid}"
                     if not os.path.isdir(foldername):
-                        os.makdirs(foldername)
-                    with open(f"{foldername}/{filename}", "a+", encoding="utf-8") as scores:
-                        scores.write(f"{PLAYER} = {score} "+ datetime.now() + "\n")
+                        os.makedirs(foldername)
+                    with open(f"{foldername}/{filename}", "w+", encoding="utf-8") as scores:
+                        scores.write(f"{score}")
                     break
 
         await printScore(PLAYER, score)
