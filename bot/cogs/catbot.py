@@ -3,12 +3,14 @@ import json
 import textwrap
 import subprocess
 import os
+import io
 from datetime import datetime
 from functools import wraps
 from random import choice, shuffle
 from subprocess import Popen
 
 import urllib
+from urllib.parse import urlparse
 import aiohttp
 import discord
 import pytz
@@ -16,6 +18,7 @@ import wikipedia
 import youtube_dl
 import requests
 from bs4 import BeautifulSoup
+from colorthief import ColorThief
 from google import lucky, search, search_apps, search_books, search_images, \
 search_news, search_shop, search_videos
 from cogs.utils import exceptions, config, helpers, checks, keys, dataIO
@@ -124,12 +127,15 @@ class CatBot():
             else:
                 await self.bot.say(f'You lose ${str(win).strip("-")}. You have ${score}.')
             if score > 0:
-                await self.bot.say('Spin again? (y/n)')
+                msg = await self.bot.say('Spin again? (y/n)')
             while score > 0:
                 again = await self.bot.wait_for_message(30, check=chkagain)
                 if again.content.lower().startswith('y'):
+                    await self.bot.delete_message(again)
+                    await self.bot.delete_message(msg)
                     await printScore(PLAYER, score)
                 else:
+                    await self.bot.delete_message(msg)
                     filename = PLAYER + ".txt"
                     sid = ctx.message.channel.server.id
                     foldername = f"data/{sid}"
@@ -778,7 +784,6 @@ class CatBot():
         
         this = ', '.join(lower)
         await self.bot.say(this)
-
 
 def setup(bot):
     n = CatBot(bot)

@@ -83,7 +83,9 @@ class Google:
         Using google won't work well, so pick something like http://www.picsearch.com/* or giphy or whatever the fuck.\n\n\
         That Search Engine ID goes in img in the keys.py file.\n\n\
         You only get 100 free searches a day, but the functionality is worth the effort. Good luck!"
-        await self.bot.send_message(botowner, message)
+            await self.bot.send_message(botowner, message)
+        else:
+            pass
 
     def parse_google_card(self, node):
         if node is None or type(node) is int:
