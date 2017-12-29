@@ -18,7 +18,8 @@ import requests
 from bs4 import BeautifulSoup
 from google import lucky, search, search_apps, search_books, search_images, \
 search_news, search_shop, search_videos
-from cogs.utils import exceptions, config, helpers, checks, keys
+from cogs.utils import exceptions, config, helpers, checks, keys, dataIO
+from cogs.utils.dataIO import DataIO, set_value
 from discord.embeds import Embed
 from discord.ext import commands
 from discord.ext.commands import *
@@ -68,12 +69,14 @@ class CatBot():
         else:
             return url.format(self, 'webp')
 
-    @commands.command()
+    @commands.command(pass_context=True)
     async def spin(self, ctx):
         """Slots of fun."""
-        ITEMS = [":cherries:", ":lemon:", ":tangerine:",
-                        ":peach:", ":bell:", ":moneybag:"]
-
+        ITEMS = ["🥜", "💣", "🍌",
+                        "🍆", "💰", "💎"]
+        PLAYER = ctx.message.author.id
+        INIT_SCORE = 20
+        score = INIT_SCORE
         firstWheel = None
         secondWheel = None
         thirdWheel = None
@@ -81,8 +84,11 @@ class CatBot():
         def spinWheel():
             randomNumber = random.randint(0, 5)
             return ITEMS[randomNumber]
-                
-        async def printScore():
+
+        def chkagain(m):
+            return(m.content.lower() in 'yn' and m.author.id == PLAYER)
+
+        async def printScore(PLAYER, score):
             firstWheel = choice(ITEMS)
             secondWheel = choice(ITEMS)
             thirdWheel = choice(ITEMS)
@@ -96,27 +102,44 @@ class CatBot():
                 await asyncio.sleep(0.6)
                         
                         
-            if firstWheel == ":cherries:" and secondWheel != ":cherries:":
+            if firstWheel == "🥜" and secondWheel != "🥜":
                 win = 2
-            elif firstWheel == ":cherries:" and secondWheel == ":cherries:" and thirdWheel != ":cherries:":
+            elif firstWheel == "🥜" and secondWheel == "🥜" and thirdWheel != "🥜":
                 win = 5
-            elif firstWheel == ":cherries:" and secondWheel == ":cherries:" and thirdWheel == ":cherries:":
+            elif firstWheel == "🥜" and secondWheel == "🥜" and thirdWheel == "🥜":
                 win = 7
-            elif firstWheel == ":tangerine:" and secondWheel == ":tangerine:" and thirdWheel == ":tangerine:" or thirdWheel == ":moneybag:":
+            elif firstWheel == "🍌" and secondWheel == "🍌" and thirdWheel == "🍌" or thirdWheel == "💰":
                 win = 10
-            elif firstWheel == ":peach:" and secondWheel == ":peach:" and thirdWheel == ":peach:" or thirdWheel == ":moneybag:":
+            elif firstWheel == "🍆" and secondWheel == "🍆" and thirdWheel == "🍆" or thirdWheel == "💰":
                 win = 14
-            elif firstWheel == ":bell:" and secondWheel == ":bell:" and thirdWheel == ":bell:" or thirdWheel == ":moneybag:":
+            elif firstWheel == "💰" and secondWheel == "💰" and thirdWheel == "💰" or thirdWheel == "💎":
                 win = 20
-            elif firstWheel == ":moneybag:" and secondWheel == ":moneybag:" and thirdWheel == ":moneybag:":
+            elif firstWheel == "💎" and secondWheel == "💎" and thirdWheel == "💎":
                 win = 250
             else:
-                win = -1
+                win = -2
+            score += win
             if win > 0:
-                await self.bot.say('You won $%s.' % win)
+                await self.bot.say(f'You won ${win}. You have ${score}.')
             else:
-                await self.bot.say('You lose. Give me $1.')
-        await printScore()
+                await self.bot.say(f'You lose ${str(win).strip("-")}. You have ${score}.')
+            if score > 0:
+                await self.bot.say('Spin again? (y/n)')
+            while score > 0:
+                again = await self.bot.wait_for_message(30, check=chkagain)
+                if again.content.lower().startswith('y'):
+                    await printScore(PLAYER, score)
+                else:
+                    filename = PLAYER + ".txt"
+                    sid = ctx.message.channel.server.id
+                    foldername = f"data/{sid}"
+                    if not os.path.isdir(foldername):
+                        os.makdirs(foldername)
+                    with open(f"{foldername}/{filename}", "a+", encoding="utf-8") as scores:
+                        scores.write(f"{PLAYER} = {score} "+ datetime.now() + "\n")
+                    break
+
+        await printScore(PLAYER, score)
 
     @commands.command(pass_context=True)
     async def avatar(self, ctx, *, user: discord.Member = None ):
@@ -134,164 +157,6 @@ class CatBot():
         else:
             embed.set_image(url=user.avatar_url)
             await self.bot.say(embed=embed)
-    @commands.command(pass_context=True)
-    async def weather(self, ctx, query):
-        """Search by major city."""
-        async with aiohttp.get('https://www.metaweather.com/api/location/search/?query=%s' % query) as r:
-            if r.status == 200:
-                js = await r.json()
-        if js == []:
-            return Response('``Nothing found.``')
-        else:
-            url = "https://www.metaweather.com/api/location/search/?query=%s" % query
-            woeid = js[0]['woeid']
-            async with aiohttp.get("https://www.metaweather.com/api/location/%s/" % woeid) as r:
-                if r.status == 200:
-                    js = await r.json()
-            url = "https://www.metaweather.com/api/location/%s/" % woeid
-            city = js['title']
-            state = js['parent']['title']
-            timez = js['timezone']
-            today = js['consolidated_weather'][0]
-            cur_cun = js['consolidated_weather'][0]["weather_state_name"]
-            cur_cun1 = js['consolidated_weather'][1]["weather_state_name"]
-            cur_cun2 = js['consolidated_weather'][2]["weather_state_name"]
-            cur_cun3 = js['consolidated_weather'][3]["weather_state_name"]
-            ws_abb = js['consolidated_weather'][0]["weather_state_abbr"]
-            ws_abb1 = js['consolidated_weather'][1]["weather_state_abbr"]
-            ws_abb2 = js['consolidated_weather'][2]["weather_state_abbr"]
-            ws_abb3 = js['consolidated_weather'][3]["weather_state_abbr"]
-            lotemp = js['consolidated_weather'][0]['min_temp'] * 9/5 + 32
-            lotemp1 = js['consolidated_weather'][1]['min_temp'] * 9/5 + 32
-            lotemp2 = js['consolidated_weather'][2]['min_temp'] * 9/5 + 32
-            lotemp3 = js['consolidated_weather'][3]['min_temp'] * 9/5 + 32
-            cur_temp = js['consolidated_weather'][0]['the_temp'] * 9/5 + 32
-            sun_rise = js['sun_rise']
-            sun_set = js['sun_set']
-            wind_dir = js['consolidated_weather'][0]["wind_direction_compass"]
-            wind_dir1 = js['consolidated_weather'][1]["wind_direction_compass"]
-            wind_dir2 = js['consolidated_weather'][2]["wind_direction_compass"]
-            wind_dir3 = js['consolidated_weather'][3]["wind_direction_compass"]
-            app_date = js['consolidated_weather'][0]["applicable_date"]
-            app_date1 = js['consolidated_weather'][1]["applicable_date"]
-            app_date2 = js['consolidated_weather'][2]["applicable_date"]
-            app_date3 = js['consolidated_weather'][3]["applicable_date"]
-            hitemp = js['consolidated_weather'][0]['max_temp'] * 9/5 + 32
-            hitemp1 = js['consolidated_weather'][1]['max_temp'] * 9/5 + 32
-            hitemp2 = js['consolidated_weather'][2]['max_temp'] * 9/5 + 32
-            hitemp3 = js['consolidated_weather'][3]['max_temp'] * 9/5 + 32
-            created = js['consolidated_weather'][0]['created']
-            created1 = js['consolidated_weather'][1]['created']
-            created2 = js['consolidated_weather'][2]['created']
-            created3 = js['consolidated_weather'][3]['created']
-            nowtime = js['time']
-            pressure = js['consolidated_weather'][0]["air_pressure"]
-            pressure1 = js['consolidated_weather'][1]["air_pressure"]
-            pressure2 = js['consolidated_weather'][2]["air_pressure"]
-            pressure3 = js['consolidated_weather'][3]["air_pressure"]
-            humid = js['consolidated_weather'][0]["humidity"]
-            humid1 = js['consolidated_weather'][1]["humidity"]
-            humid2 = js['consolidated_weather'][2]["humidity"]
-            humid3 = js['consolidated_weather'][3]["humidity"]
-            visib = js['consolidated_weather'][0]["visibility"]
-            visib1 = js['consolidated_weather'][1]["visibility"]
-            visib2 = js['consolidated_weather'][2]["visibility"]
-            visib3 = js['consolidated_weather'][3]["visibility"]
-            pred = js['consolidated_weather'][0]["predictability"]
-            pred1 = js['consolidated_weather'][1]["predictability"]
-            pred2 = js['consolidated_weather'][2]["predictability"]
-            pred3 = js['consolidated_weather'][3]["predictability"]
-
-            embed = discord.Embed(title="Today in %s, %s" % (city, state), color=discord.Color(0x00cc99), description="Today's weather shit.", timestamp=datetime.now(pytz.utc))
-            embed1 = discord.Embed(title="Tomorrow in  %s, %s " % (city, state), description='Forecast for %s.' % app_date1, timestamp=datetime.now(pytz.utc))
-            embed2 = discord.Embed(title="Day Two in  %s, %s " % (city, state), description='Forecast for %s.' % app_date2, timestamp=datetime.now(pytz.utc))
-            embed3 = discord.Embed(title="Day Three in  %s, %s " % (city, state), description='Forecast for %s.' % app_date3, timestamp=datetime.now(pytz.utc))
-            if ws_abb == 'sn':
-                cur_c = "S'Frickin Snowing!! 🌨️❄️"
-                embed.set_thumbnail(url="https://media.giphy.com/media/1RxlWYJ5hMYbS/giphy.gif" % ws_abb)
-            elif ws_abb == 'sl':
-                cur_c = "Frickin Sleet!!  Wtf?! 🤦"
-                embed.set_thumbnail(url="https://media.giphy.com/media/ZW2VPDRIp1iwM/giphy.gif")
-            elif ws_abb == 'h':
-                cur_c = "Frickin Hail?!? 💥"
-                embed.set_thumbnail(url="https://media.giphy.com/media/xTiTnGmU99wLFvZBfy/giphy.gif")
-            elif ws_abb == 't':
-                cur_c = "Frickin Thundah!! 🌩️"
-                embed.set_thumbnail(url="https://media.giphy.com/media/CIYF0RVOmd2qQ/giphy.gif")
-            elif ws_abb == 'hr':
-                cur_c = "Rainin' like a Bitch! 🌧️"
-                embed.set_thumbnail(url="https://media.giphy.com/media/RTMPrwl94sVvq/giphy.gif")
-            elif ws_abb == 'lr':
-                cur_c = "S'rainin'. ☔"
-                embed.set_thumbnail(url="https://media.giphy.com/media/NMlmbDwu9eeg8/giphy.gif")
-            elif ws_abb == 's':
-                cur_c = "Rainin' a lil. 🌦️"
-                embed.set_thumbnail(url="http://media5.starkinsider.com/wordpress/wp-content/uploads/2010/02/Backyard-Rainbow.jpg?x28372")
-            elif ws_abb == 'hc':
-                cur_c = "Wicked Cloudy! ☁️"
-                embed.set_thumbnail(url="https://media.giphy.com/media/3o7rc6sa2RvKo8K5EI/giphy.gif")
-            elif ws_abb == 'lc':
-                cur_c = "Lil Cloudy. 🌤️"
-                embed.set_thumbnail(url="https://cdn.pixabay.com/photo/2014/08/27/15/05/clouds-429228_960_720.jpg")
-            elif ws_abb == 'c':
-                cur_c = "S'nice! ☀️"
-                embed.set_thumbnail(url="https://media.giphy.com/media/KlI5X8lg0wINO/giphy.gif")
-            
-            embed3.set_thumbnail(url='http://yoshimi777.weebly.com/uploads/1/0/7/9/107938335/three_orig.png')
-            embed2.set_thumbnail(url='http://yoshimi777.weebly.com/uploads/1/0/7/9/107938335/two_orig.png')
-            embed1.set_thumbnail(url='http://yoshimi777.weebly.com/uploads/1/0/7/9/107938335/one_orig.png')
-
-            embed.add_field(name='Local Date/Time:', value=nowtime)
-            embed.add_field(name="Timezone: ", value=timez)
-            embed.add_field(name="Forecast for: ", value=app_date)
-            embed.add_field(name="Created on: ", value=created)
-            embed.add_field(name='Prevailing Conditions: ', value=cur_c)
-            embed1.add_field(name='Expected Conditions: ', value=cur_cun1)
-            embed2.add_field(name='Expected Conditions: ', value=cur_cun2)
-            embed3.add_field(name='Expected Conditions: ', value=cur_cun3)
-            embed1.add_field(name='High / Low Temp ℉: ', value='%s / %s ' % (round(hitemp1, 2), round(lotemp1, 2)))
-            embed2.add_field(name='High / Low Temp ℉: ', value='%s / %s ' % (round(hitemp2, 2), round(lotemp2, 2)))
-            embed3.add_field(name='High / Low Temp ℉: ', value='%s / %s ' % (round(hitemp3, 2), round(lotemp3, 2)))
-            embed.add_field(name='Wind Direction: ', value=wind_dir)
-            embed.add_field(name='Temp ℉: ', value=round(cur_temp, 2))
-            embed.add_field(name='Humidity %: ', value=humid,)
-            embed1.add_field(name='Humidity %: ', value=humid1)
-            embed2.add_field(name='Humidity %: ', value=humid2)
-            embed3.add_field(name='Humidity %: ', value=humid3)
-            embed.add_field(name='High Temp ℉: ', value=round(hitemp, 2))
-            embed.add_field(name='Low Temp ℉: ', value=round(lotemp, 2))
-            embed.add_field(name='Pressure: ', value=round(pressure, 2))
-            embed.add_field(name='Visibility: 👀', value=round(visib, 2))
-            embed1.add_field(name='Visibility: 👀', value=round(visib1, 2))
-            embed2.add_field(name='Visibility: 👀', value=round(visib2, 2))
-            embed3.add_field(name='Visibility: 👀', value=round(visib3, 2))
-            embed.add_field(name='Predictability: ', value=pred)
-            embed.add_field(name='Sun Rise: 🌄', value=sun_rise, inline=True)
-            embed.add_field(name='Sun Set: 🌇', value=sun_set, inline=True)
-            
-            embed1.add_field(name='Predictability: ', value=pred1)
-            embed2.add_field(name='Predictability: ', value=pred2)
-            embed3.add_field(name='Predictability: ', value=pred3)
-            embed.set_footer(text=self.bot.user.name, icon_url='https://images.discordapp.net/avatars/%s/%s.jpg' %
-                                (self.bot.user.id, self.bot.user.avatar))
-            embed1.set_footer(text=self.bot.user.name, icon_url='https://images.discordapp.net/avatars/%s/%s.jpg' %
-                                (self.bot.user.id, self.bot.user.avatar))
-            embed2.set_footer(text=self.user.name, icon_url='https://images.discordapp.net/avatars/%s/%s.jpg' %
-                                (self.bot.user.id, self.bot.user.avatar))                     
-            embed3.set_footer(text=self.bot.user.name, icon_url='https://images.discordapp.net/avatars/%s/%s.jpg' %
-                                (self.bot.user.id, self.bot.user.avatar))
-            await self.bot.say(embed=embed)
-            def checkk(m):
-                return(m.content.lower() in 'yn')
-            await self.bot.say("```Three Day Forecast for this Location? (y/n)```")
-            threeday = await self.bot.wait_for_message(60, check=checkk)
-            if threeday.content.lower().startswith('y'):
-                await self.bot.say(embed=embed1)
-                await self.bot.say(embed=embed2)
-                await self.bot.say(embed=embed3)
-                await self.bot.delete_message(threeday)
-            else:
-                await self.bot.delete_message(threeday)    
 
     @commands.command(pass_context=True)
     async def dog(self, ctx):
@@ -614,8 +479,8 @@ class CatBot():
         channel = ctx.message.channel
         ROWS = 3
         COLMS = 3
-        O = '⚪'
-        X = '✖️'
+        O = '⭕️'
+        X = '❌'
         brd = [
             ['⏹️', '🔳', '⏹️'],
             ['🔳', '🆓', '🔳'],
@@ -629,7 +494,7 @@ class CatBot():
         for i in range(ROWS):
                 await self.bot.say('|'.join(brd[i]))
         while not done:
-            await self.bot.say("Player 1, you are ✖️, make your move. (Enter a # 1-9)")
+            await self.bot.say("Player 1, you are ❌, make your move. (Enter a # 1-9)")
             def checknumb(m):
                 return(m.author.id != self.bot.user.id and m.content.strip().isnumeric() is True)
             pick = await self.bot.wait_for_message(60, channel=channel, check=checknumb)
@@ -637,31 +502,31 @@ class CatBot():
             if userInput in numbers:
                 if userInput == 1:
                     numbers.remove(1)
-                    brd[0][0] = '✖️'
+                    brd[0][0] = '❌'
                 if userInput == 2:
                     numbers.remove(2)
-                    brd[0][1] = '✖️'
+                    brd[0][1] = '❌'
                 if userInput == 3:
                     numbers.remove(3)
-                    brd[0][2] = '✖️'
+                    brd[0][2] = '❌'
                 if userInput == 4:
                     numbers.remove(4)
-                    brd[1][0] = '✖️'
+                    brd[1][0] = '❌'
                 if userInput == 5:
                     numbers.remove(5)
-                    brd[1][1] = '✖️'
+                    brd[1][1] = '❌'
                 if userInput == 6:
                     numbers.remove(6)
-                    brd[1][2] = '✖️'
+                    brd[1][2] = '❌'
                 if userInput == 7:
                     numbers.remove(7)
-                    brd[2][0] = '✖️'
+                    brd[2][0] = '❌'
                 if userInput == 8:
                     numbers.remove(8)
-                    brd[2][1] = '✖️'
+                    brd[2][1] = '❌'
                 if userInput == 9:
                     numbers.remove(9)
-                    brd[2][2] = '✖️'
+                    brd[2][2] = '❌'
             else:
                 await self.bot.say("Invalid input, <@%s>.  Lose a turn." % pick.author.id)
             for i in range(ROWS):
@@ -677,7 +542,7 @@ class CatBot():
                 done = True
                 if done == True:
                     break
-            await self.bot.say("Player 2, you are ⚪, make your move. (Enter a # 1-9)")
+            await self.bot.say("Player 2, you are ⭕️, make your move. (Enter a # 1-9)")
             def checknumb(m):
                 return(m.author.id != self.bot.user.id and m.content.strip().isnumeric() is True)
             pick2 = await self.bot.wait_for_message(60, channel=channel, check=checknumb)
@@ -685,31 +550,31 @@ class CatBot():
             if userInput in numbers:
                 if userInput == 1:
                     numbers.remove(1)
-                    brd[0][0] = '⚪'
+                    brd[0][0] = '⭕️'
                 if userInput == 2:
                     numbers.remove(2)
-                    brd[0][1] = '⚪'
+                    brd[0][1] = '⭕️'
                 if userInput == 3:
                     numbers.remove(3)
-                    brd[0][2] = '⚪'
+                    brd[0][2] = '⭕️'
                 if userInput == 4:
                     numbers.remove(4)
-                    brd[1][0] = '⚪'
+                    brd[1][0] = '⭕️'
                 if userInput == 5:
                     numbers.remove(5)
-                    brd[1][1] = '⚪'
+                    brd[1][1] = '⭕️'
                 if userInput == 6:
                     numbers.remove(6)
-                    brd[1][2] = '⚪'
+                    brd[1][2] = '⭕️'
                 if userInput == 7:
                     numbers.remove(7)
-                    brd[2][0] = '⚪'
+                    brd[2][0] = '⭕️'
                 if userInput == 8:
                     numbers.remove(8)
-                    brd[2][1] = '⚪'
+                    brd[2][1] = '⭕️'
                 if userInput == 9:
                     numbers.remove(9)
-                    brd[2][2] = '⚪'
+                    brd[2][2] = '⭕️'
             else:
                 await self.bot.say("Invalid input, <@%s>.  Lose a turn." % pick2.author.id)
             for i in range(ROWS):
@@ -763,6 +628,16 @@ class CatBot():
         queery = query.replace(' ', '+')
         for url in search_videos(queery, num=1, start=0, stop=2, pause=2.0):
             await asyncio.sleep(0.5)
+            await self.bot.say(url)
+    
+    @commands.command(pass_context=True)
+    async def imgs(self, ctx, query: str):
+        """shitty implementation, does not return image links"""
+        query = ctx.message.content.lower().replace(config.prefix+'imgs ','').strip()
+        queery = query.replace(' ', '+')
+        for url in search_images(queery, num=3, start=0, stop=3, pause=2.0):
+            await asyncio.sleep(0.5)
+            print(url)
             await self.bot.say(url)
 
     @commands.command(pass_context=True, no_pm=False, aliases=['lyrics'])        
@@ -821,7 +696,9 @@ class CatBot():
                 if cmd.cog_name == "ChatterBot" and cmd.hidden is False:
                     general.append(command)
                 if cmd.cog_name == "CatBot" and cmd.hidden is False:	
-                    catbot.append(command)	
+                    catbot.append(command)
+                if cmd.cog_name == "Google"	and cmd.hidden is False:
+                    catbot.append(command)
                 if cmd.cog_name == 'Audio' and cmd.hidden is False:
                     audio.append(command)
                 else:

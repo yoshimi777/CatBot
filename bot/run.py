@@ -149,6 +149,15 @@ def write_kys():
         keys += "giphy = '5Qpya49BCDLcJ1X0OgMe31xMWbrGZnx7' #https://developers.giphy.com/\n"
         keys += "maps = 'AIzaSyBzaO21hTYu4uTA_9p6MZigxx4JWJBz5kA' #https://google-developers.appspot.com/maps/documentation/static-maps/\n"
         keys += "currency = '95264b8a08f2259b35db7fd8002b6634' #https://currencylayer.com/\n"
+        keys += "engine = ''\n"
+        keys += "img = ''\n\
+        # To use the google cog, you MUST get a Google API key, and enable the custom-search API\n\
+        # start at https://console.developers.google.com/apis/library/customsearch.googleapis.com/ then follow directions at\n\
+        # https://console.developers.google.com/apis/library/customsearch.googleapis.com/\n\
+        # You'll make two engines, one can just have https://www.google.com as the site to search. The search engine ID for that goes into 'engine' in this file.\n\
+        # The 2nd, make sure you select 'Image Search' and enter whatever sites you please to search for images by keywords.\n\
+        # Using google won't work well, so pick something like http://www.picsearch.com/* or giphy or whatever the fuck.\n\
+        # You guessed it, that Search Engine ID goes in img. You only get 100 free searches a day, but the process is worth it. Good luck!\n"
         filename = f"{THIS_DIR}\\cogs\\utils\\keys.py"
         print(f"Creating {filename}...")
         with open(filename, 'w') as f:
