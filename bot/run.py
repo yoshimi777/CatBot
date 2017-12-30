@@ -2,10 +2,11 @@ from __future__ import print_function
 import os
 import sys
 import subprocess
-import urllib.request                   
-from importlib.util import find_spec
-import requests
-import zipfile
+try:                                        
+    import urllib.request                   
+    from importlib.util import find_spec    
+except ImportError:
+    pass
 import platform
 import webbrowser
 import hashlib
@@ -29,72 +30,12 @@ IS_MAC = sys.platform == "darwin"
 IS_64BIT = platform.machine().endswith("64")
 INTERACTIVE_MODE = not len(sys.argv) > 1  # CLI flags = non-interactive
 PYTHON_OK = sys.version_info >= (3, 5)
-FFMPEG_64_URL = "https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-20171223-d02289c-win64-static.zip"
-FFMPEG_32_URL = "https://ffmpeg.zeranoe.com/builds/win32/static/ffmpeg-20171223-d02289c-win32-static.zip"
-FFMPEG_64_MAC_URL = "https://ffmpeg.zeranoe.com/builds/macos64/static/ffmpeg-20171223-d02289c-macos64-static.zip"
-FILES = {
-    "ffmpeg.exe"  : "09e5595997969ad60d81b261d1a2e176",
-    "ffplay.exe"  : "5bc5d563453e0566f2bf1d8bcf435f5c",
-    "ffprobe.exe" : "6bfcb66a5304ec5d4bec710bdd54a89c"
+
+FFMPEG_FILES = {#TODO recheck these
+    "ffmpeg.exe"  : "e0d60f7c0d27ad9d7472ddf13e78dc89",
+    "ffplay.exe"  : "d100abe8281cbcc3e6aebe550c675e09",
+    "ffprobe.exe" : "0e84b782c0346a98434ed476e937764f"
 }
-THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-
-def download():
-    this_dir = os.path.dirname(os.path.abspath(__file__))
-    if not os.path.isfile(f"{THIS_DIR}\\ffmpeg.exe"):
-        if IS_WINDOWS:
-            if IS_64BIT:
-                r = requests.get(FFMPEG_64_URL)
-            else:
-                r = requests.get(FFMPEG_32_URL)
-        if IS_MAC:
-            r = requests.get(FFMPEG_64_MAC_URL)
-        with open(f'{THIS_DIR}/ffmpeg.zip', 'wb+') as z:
-            z.write(r.content)
-        with zipfile.ZipFile(f'{THIS_DIR}/ffmpeg.zip') as myzip:
-            contents = myzip.namelist()
-            files = [contents[2], contents[3], contents[4]]
-            myzip.extractall(path=f'{THIS_DIR}', members=files)
-            for file in files:
-                file = f'{THIS_DIR}\\{file}'
-                shutil.move(file, f'{this_dir}')
-            shutil.rmtree(f'{THIS_DIR}/{contents[0]}')
-
-def verify(filename):
-    if IS_WINDOWS:
-        if IS_64BIT:
-            verified = []
-
-            for filename in FILES:
-                if os.path.isfile(filename):
-                    print(f"{filename} already present. Verifying integrity... ", end="")
-                    _hash = calculate_md5(filename)
-                    if _hash == FILES[filename]:
-                        verified.append(filename)
-                        print("OK")
-                        continue
-                    else:
-                        print("Hash mismatch.")
-
-            for filename, _hash in FILES.items():
-                if filename in verified:
-                    continue
-                print(f"Verifying {filename}... ", end="")
-                if not calculate_md5(filename) != _hash:
-                    print("Passed.")
-                else:
-                    print("Hash mismatch. Please redownload.")
-                    download()
-
-            print("\nAll files a-ok.")
-
-def calculate_md5(filename):
-    hash_md5 = hashlib.md5()
-    with open(f"{THIS_DIR}\\{filename}", "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            hash_md5.update(chunk)
-    return hash_md5.hexdigest()
-
 
 def parse_cli_arguments():
     parser = argparse.ArgumentParser(description="CatBot - catapault")
@@ -143,7 +84,7 @@ def clear_screen():
         os.system("clear")
 
 def write_kys():
-    if not os.path.isfile(f"{THIS_DIR}\\cogs\\utils\\keys.py"):
+    if not os.path.isfile("cogs/utils/keys.py"):
         keys = "## These keys may change and become deactivated.  Currency only has 1000/mo, please be kind.  They're all free and you're encouraged to get your own, which is why this file exists.\n"
         keys += "yt = 'AIzaSyCcJqSmUFboDasqYnmKCtbiU0PPEaFuCN0' #https://developers.google.com/apis-explorer/#p/\n" 
         keys += "giphy = '5Qpya49BCDLcJ1X0OgMe31xMWbrGZnx7' #https://developers.giphy.com/\n"
@@ -158,7 +99,8 @@ def write_kys():
         # The 2nd, make sure you select 'Image Search' and enter whatever sites you please to search for images by keywords.\n\
         # Using google won't work well, so pick something like http://www.picsearch.com/* or giphy or whatever the fuck.\n\
         # You guessed it, that Search Engine ID goes in img. You only get 100 free searches a day, but the process is worth it. Good luck!\n"
-        filename = f"{THIS_DIR}\\cogs\\utils\\keys.py"
+        # filename = f"{THIS_DIR}\\cogs\\utils\\keys.py"
+        filename = "cogs/utils/keys.py"
         print(f"Creating {filename}...")
         with open(filename, 'w') as f:
             f.write(keys)
@@ -169,21 +111,21 @@ def reqs():
     subprocess.run("pip install -r requirements.txt")
     
 def write_settings():
-    if not os.path.isfile(f"{THIS_DIR}\\cogs\\utils\\config.py"):
+    if not os.path.isfile("cogs/utils/config.py"):
         print('This is the setup for config file.\nMake a bot and enter its token, your user ID as owner, a volume, prefix, and chat channel.\nDo not use quotes.')
         token = input('Enter your bot\'s token: ').strip()
         owner_id = int(input('Enter your user ID: ').strip())
         chat = input('Enter a text chat channel for chatterbot: ').strip()
         vol = int(input('Enter a default volume (1-9, but 5 is recommended): ').strip())
         prefix = input('Enter a prefix for bot commands (ex: + or =): ')
-        config = f"token = '{token}'\n"
+        config = "token = '{}'\n".format(token) 
         config += "cogs = ['cogs.audio', 'cogs.translate', 'cogs.general', 'cogs.chatterbot', 'cogs.catbot']\n" 
-        config += f"prefix = '{prefix}'\n" 
-        config += f"owner = '{owner_id}'\n"
-        config += f"volume = .{vol}\n"
-        config += f"chatChannels = ['{chat}']\n"
+        config += "prefix = '{}'\n".format(prefix) 
+        config += "owner = '{}'\n".format(owner_id)
+        config += "volume = .{}\n".format(vol) 
+        config += "chatChannels = ['{}']\n".format(chat)
     
-        filename = "cogs\\utils\\config.py"  
+        filename = "cogs/utils/config.py"  
         print("Creating {}... ".format(filename))
         with open(filename, "w") as f:
             f.write(config)
@@ -197,9 +139,9 @@ def create_fast_start_scripts():
     if not interpreter:
         return
 
-    call = f"\"{interpreter}\" run.py"
-    catbot = f"{call} --start --auto-restart"
-    virtenv = f"{interpreter} -m venv virtenv"
+    call = "\"{}\" run.py".format(interpreter)
+    catbot = "{} --start --auto-restart".format(call)
+    virtenv = "{} -m venv virtenv".format(interpreter)
     virtenv += "\nstart virtenv\\scripts\\activate.bat"
     modified = False
 
@@ -228,7 +170,7 @@ def create_fast_start_scripts():
 
     for filename, content in files.items():
         if not os.path.isfile(filename):
-            print(f"Creating {filename}... ")
+            print("Creating {}... ".format(filename))
             modified = True
             with open(filename, "w") as f:
                 f.write(content)
@@ -240,10 +182,6 @@ def create_fast_start_scripts():
 def main():
     if IS_WINDOWS:
         os.system("TITLE CatBot")
-        download()
-        verify(filename=None)
-        if os.path.isfile(f'{THIS_DIR}\\ffmpeg.zip'):
-            os.remove(f'{THIS_DIR}\\ffmpeg.zip')
     clear_screen()
     write_settings()
     write_kys()
