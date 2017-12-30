@@ -13,7 +13,7 @@ import threading
 import time
 from json import JSONDecodeError
 from random import choice, shuffle
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote_plus
 
 import discord
 import youtube_dl
@@ -1174,12 +1174,13 @@ class Audio:
             await self.bot.say("Nothing playing, nothing to pause.")
     
     async def ytsearch(self, query: str):
+        base = 'https://www.youtube.com/watch?v='
+        idName = 'videoId'
         query = query.replace(' ', '+').strip()
         url = f'https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=3&q={query}&type=video&key={keys.yt}' 
         async with aiohttp.get(url) as r:
             js = await r.json()
-        base = 'https://www.youtube.com/watch?v='
-        id1= js['items'][0]['id']['videoId']
+        id1= js['items'][0]['id']['{idName}']
         newurl = base+id1
         return newurl
                 
@@ -1726,16 +1727,24 @@ class Audio:
         """Searches and plays a video from YouTube"""
         channel = ctx.message.channel
         author = ctx.message.author
-        key = keys.yt
-        query = query.replace(' ', '+')
-        url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=3&q=%s&type=video&key=%s'%(query, key) 
+        print(query)
+        if query.startswith('pl '):
+            opt = 'playlist'
+            base = "https://www.youtube.com/playlist?list="
+            idName = 'playlistId'
+            query = query.lstrip('pl ')
+        else:
+            opt = 'video'
+            base = 'https://www.youtube.com/watch?v='
+            idName = 'videoId'
+
+        query = quote_plus(query)
+        url = f'https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=3&q={query}&type={opt}&key={keys.yt}' 
         async with aiohttp.get(url) as r:
             js = await r.json()
-        msg = ''
-        base = 'https://www.youtube.com/watch?v='
+        key = keys.yt
         for i in range(len(js['items'])):
-            
-            id1 = js['items'][i]['id']['videoId']
+            id1 = js['items'][i]['id'][f'{idName}']
             title1 = js['items'][i]['snippet']['title']
             index = i+1
             url1 = base + id1
@@ -1749,11 +1758,11 @@ class Audio:
             return
         userchoice = hmm.content[0]
         if userchoice == '1':
-            await ctx.invoke(self.play, url_or_search_terms=base+js['items'][0]['id']['videoId'])
+            await ctx.invoke(self.play, url_or_search_terms=base+js['items'][0]['id'][f'{idName}'])
         elif userchoice == '2':
-            await ctx.invoke(self.play, url_or_search_terms=base+js['items'][1]['id']['videoId'])
+            await ctx.invoke(self.play, url_or_search_terms=base+js['items'][1]['id'][f'{idName}'])
         elif userchoice == '3':
-            await ctx.invoke(self.play, url_or_search_terms=base+js['items'][2]['id']['videoId'])
+            await ctx.invoke(self.play, url_or_search_terms=base+js['items'][2]['id'][f'{idName}'])
         else:
             return
 
@@ -1865,6 +1874,7 @@ class Audio:
     @commands.command(pass_context=True)
     async def testtube(self, ctx, url : str):
         """yt url to mp3"""
+        print(url)
         if not ctx.message.author.id == config.owner:
             return
         

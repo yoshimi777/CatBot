@@ -46,11 +46,11 @@ async def cogs():
     """Lists currently running cogs"""
     await bot.say("```py\n"+', '.join(list(bot.cogs.keys()))+"```")
 
-@bot.command()
+@bot.command(pass_context=True)
 async def load(ctx, extension_name : str):
     """Loads an extension."""
     try:
-        bot.load_extension('cogs.'+extension_name)
+        bot.load_extension('cogs.'+ extension_name)
     except (AttributeError, ImportError) as e:
         await bot.say("```py\n{}: {}\n```".format(type(e).__name__, str(e)))
         return
