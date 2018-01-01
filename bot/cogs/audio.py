@@ -57,7 +57,8 @@ youtube_dl_options = {
 }
 
 
-
+INFODIR = 'data/audio/info'
+PLDIR = 'data/audio/localtracks'
 
 class MaximumLength(Exception):
     def __init__(self, m):
@@ -1180,7 +1181,7 @@ class Audio:
         url = f'https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=3&q={query}&type=video&key={keys.yt}' 
         async with aiohttp.get(url) as r:
             js = await r.json()
-        id1= js['items'][0]['id']['{idName}']
+        id1= js['items'][0]['id'][f'{idName}']
         newurl = base+id1
         return newurl
                 
@@ -1727,7 +1728,6 @@ class Audio:
         """Searches and plays a video from YouTube"""
         channel = ctx.message.channel
         author = ctx.message.author
-        print(query)
         if query.startswith('pl '):
             opt = 'playlist'
             base = "https://www.youtube.com/playlist?list="
@@ -1872,9 +1872,9 @@ class Audio:
         return False
     
     @commands.command(pass_context=True)
-    async def testtube(self, ctx, url : str):
+    async def testtube(self, ctx, url):
         """yt url to mp3"""
-        print(url)
+
         if not ctx.message.author.id == config.owner:
             return
         
@@ -1901,92 +1901,88 @@ class Audio:
         }
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
-            print(info)
             await asyncio.sleep(3)
+            
+            if not os.path.isdir(INFODIR):
+                os.makedirs(INFODIR)
+            
             if '_type' in info.keys():
                 if info['_type'] == 'playlist':
-                    subprocess.Popen('youtube-dl -x --audio-format "mp3" --audio-quality 0 --restrict-filenames --output data/audio/localtracks/%(playlist_title)s/%(title)s.%(ext)s '+ url)
+                    theID = info['id']
+                    title = info['title']
+                    file = INFODIR + "/" + theID + ".json"
+                    dataIO.save_json(file, info)
+                    n = len(info['entries'])
+                    await self.bot.say(f"Downloading {n} tracks from {title}...  In a few minutes, do\n\
+                    {config.prefix}ttbb {theID}")
+                    subprocess.Popen('youtube-dl -x --audio-format "mp3" --audio-quality 0 --output data/audio/localtracks/%(playlist_title)s/%(title)s.%(ext)s '+ url)
                     # await self.bot.say('This is a playlist; run %sttbb <url> in a few min for whatever files I can send.  Expect that I\'ll be knocked offline if files are too large or numerous.'%config.prefix)
             else:
                 url = url.split('&')[0]
                 info = ydl.extract_info(url, download=True)
                 folder = 'NA'
                 title = info['title']
-                await self.bot.send_file(ctx.message.channel, "data/audio/localtracks/%s/%s.mp3"%(folder, title))
+                await self.bot.send_file(ctx.message.channel, "data/audio/localtracks/%(folder)s/%(title)s.%(ext)s")
 
  
     @commands.command(pass_context=True)
-    async def ttbb(self, ctx, url : str):
-        """sends 🎧 files from url"""
+    async def ttbb(self, ctx, name: str = None):
+        """sends 🎧 files"""
         
         if not ctx.message.author.id == config.owner:
             return
-        class MyLogger(object):
-            def debug(self, msg):
-                pass
 
-            def warning(self, msg):
-                pass
-
-            def error(self, msg):
-                print(msg)
+        if name is None:
+            await self.bot.say("The id of the playlist is the name of the file...")
+        else:
+            file = INFODIR + "/" + name + ".json"
         
-        def my_hook(d):
-            if d['status'] == 'finished':
-                if d['downloaded_bytes'] >= 8000000:
-                    print('file too big!')
-
-        ydl_opts = {
-                'format': 'bestaudio/best',
-                'extractaudio': True,
-                'audioformat': 'mp3',
-                'outtmpl': 'data/audio/localtracks/NA/%(title)s.%(ext)s',
-                'restrictfilenames': False,
-                'noplaylist': True,
-                'nooverwrites': True,
-                'nocheckcertificate': True,
-                'ignoreerrors': False,
-                'logtostderr': False,
-                'quiet': True,
-                'no_warnings': True,
-                'default_search': 'auto',
-                'source_address': '0.0.0.0',
-                'postprocessors': [{
-                        'key': 'FFmpegExtractAudio',
-                        'preferredcodec': 'mp3',
-                        }],
-                'progress_hooks': [my_hook],
-                'logger': MyLogger(),
-                }
-        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            try:
-                for i in range(len(info['formats'])):
-                    if info['formats'][i]['format_id'] == '140':
-                        size = int(info['formats'][i]['filesize'])
-            except:
-                Exception
-            if '_type' in info.keys():
-                # await self.bot.say('This is a playlist; please run tracks one at a time to get em.')
-                if info['_type'] == 'playlist':
-                    print(size)
-                    for i in range(len(info['entries'])):
-                        url = info['entries'][i]['url']
-                        folder = info['title']
-
-                        title = info['entries'][i]['title']
-                        index = info['entries'][i]['playlist_index']
-                        await self.bot.send_file(ctx.message.channel, "data/audio/localtracks/%s/%s.mp3"%(folder, title), content='#%s of %s'%(index, len(info['entries'])))
-            else:
-                url = url.split('&')[0]
-                info = ydl.extract_info(url, download=True)
-                folder = 'NA'
-                title = info['title']
-                
-                if size >= 8000000:
-                    await self.bot.say('File is too big!  Limit 8MB')
+        if not os.path.isfile(file):
+            await self.bot.say("Yeah, no, I don't have that.")
+        else:
+            info = dataIO.load_json(file)
+            plname = info["title"]
+            songdir = PLDIR + "/" + plname
+            newfile = INFODIR + "/" + plname + ".json"
+            songlist = []
+            tracks = os.listdir(songdir)
+            theID = info['id']
+            plurl = f"https://www.youtube.com/playlist?list={theID}"
+            for i in range(len(info["entries"])):
+                s = os.stat(songdir + "/" + tracks[i])
+                size = s.st_size
+                fp = songdir + "/" + tracks[i]
+                fn, ext = os.path.splitext(fp)
+                n = len(info['entries'])
+                title = info["entries"][i]["title"]
+                url = info["entries"][i]["webpage_url"]
+                length = round(info["entries"][i]["duration"] / 60, 2)
+                indx = info["entries"][i]["playlist_index"]
+                sendok = True
+                if size >= 8388608:
+                    sendok = False
+                songs = {"sendok" : sendok, "playlist name" : plname, "playlist url" : plurl, "id" : indx, "fp" : fp, "title" : title, "url" : url, "length": length, "size" : size}
+                songlist.append(songs)
+            
+            songinfo = songlist
+            dataIO.save_json(newfile, songinfo)
+            sd = dataIO.load_json(newfile)
+            
+            willsend = []
+            toobig = []
+            
+            for i in range(n):
+                if sd[i]["sendok"] is True:
+                    willsend.append(sd[i]["fp"])
                 else:
-                    await self.bot.send_file(ctx.message.channel, "data/audio/localtracks/%s/%s.mp3"%(folder, title))
+                    mb = round(sd[i]["size"] / 1048576, 2)
+                    toobig.append(f"{sd[i]['title']} : {mb}MB")
+                
+            await self.bot.say(f"Can't send these files:\n" + '\n'.join(toobig))
+            await self.bot.say(f"Attempting to send {len(willsend)} files from {plname}...")
+            
+            for i in range(len(willsend)):
+                await self.bot.send_file(ctx.message.channel, willsend[i], content=f"#{i + 1} of {len(willsend)}")
 
     @commands.command(pass_context=True)
     async def qtest(self, ctx):

@@ -23,7 +23,9 @@ async def on_ready():
 @bot.event
 async def on_message(message):
     if message.content.startswith(config.prefix):
-        message.content = message.content.lower()
+        oldcmd = message.content.split(' ')[0]
+        newcmd = oldcmd.lower()
+        message.content = message.content.replace(oldcmd, newcmd)
         await bot.process_commands(message)
         
 @bot.event
@@ -37,9 +39,9 @@ async def on_command(command, ctx):
 
     print('{0.timestamp}: {0.author.name} in {1}: {0.content}'.format(message, destination))
 
-@bot.event
-async def on_command_error(error, ctx):
-    print('error: {}'.format(error))
+# @bot.event
+# async def on_command_error(error, ctx):
+#     print('error: {}'.format(error))
 
 @bot.command()
 async def cogs():
